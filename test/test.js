@@ -1,28 +1,18 @@
-
-
-
-
-
-
-
-
-
-
 const WebSocket = require("ws");
 const fs = require("fs");
+const express = require("express");
+const http = require("http");
 
-const wss = new WebSocket.Server({ port: 3000 });
+const PORT = process.env.PORT || 3000;
+
+const app = express();
+const server = http.createServer(app); // Create HTTP server
+
+// Attach WebSocket to the same HTTP server
+const wss = new WebSocket.Server({ server });
 
 wss.on("connection", (ws) => {
   console.log("Client connected");
-
-  // ws.on("message", (message) => {
-  //   console.log("Received:", message);
-
-    // if (message === "TRIGGER_AUDIO") {
-      sendAudio(ws); // Send audio when triggered
-    // }
-  // });
 
   ws.on("close", () => console.log("Client disconnected"));
 });
@@ -43,43 +33,25 @@ const sendAudio = (ws) => {
   });
 };
 
-// Expose an API endpoint to trigger audio
-const express = require("express");
-const app = express();
-
+// API endpoint to trigger audio
 app.get("/trigger-audio", (req, res) => {
+  let sent = false;
+
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       sendAudio(client);
+      sent = true;
     }
   });
-  res.send("Audio triggered!");
+
+  if (sent) {
+    res.send("Audio sent successfully!");
+  } else {
+    res.status(500).send("No WebSocket clients connected.");
+  }
 });
 
-app.listen(4000, () => console.log("Trigger server running on http://localhost:4000"));
-
-
-
-
-/*
-
-
-
-const WebSocket = require("ws");
-const fs = require("fs");
-
-const wss = new WebSocket.Server({ port: 3000 });
-// Read and convert audio file to Base64
-const audioFile = fs.readFileSync("sound.mp3").toString("base64");
-wss.on("connection", (ws) => {
-  console.log("Client connected");
-
-
-
-  // Send the full Base64 string at once
-  ws.send(audioFile);
-  ws.send("END");
-
-  console.log("Audio sent successfully");
+// Start the server
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-*/
